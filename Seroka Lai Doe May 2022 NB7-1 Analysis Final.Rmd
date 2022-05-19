@@ -1,0 +1,417 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+
+library(dplyr)
+library(Seurat)
+
+#stg 12 object
+stg12_aug16.data <- Read10X(data.dir = "/Users/austinseroka/Desktop/Austin_seq_may/stg\ 12\ aggr/stg12_aggr_filtered_feature_bc_matrix")
+stg12_aug16 <- CreateSeuratObject(counts = stg12_aug16.data, project = "Stg12 aug16", min.cells = 3, min.features = 50)
+
+#stg14 object
+stg14_aug16.data <- Read10X(data.dir = "/Users/austinseroka/Desktop/Austin_seq_may/stg\ 14\ aggr/stg14_aggr_filtered_feature_bc_matrix")
+stg14_aug16 <- CreateSeuratObject(counts = stg14_aug16.data, project = "Stg14 aug16", min.cells = 3, min.features = 50)
+
+#stg16 object
+stg16_aug16.data <- Read10X(data.dir = "/Users/austinseroka/Desktop/Austin_seq_may/stg\ 16\ aggr/stg16_aggr_filtered_feature_bc_matrix")
+stg16_aug16 <- CreateSeuratObject(counts = stg16_aug16.data, project = "Stg14 aug16", min.cells = 3, min.features = 50)
+
+```
+
+# Merge data into new object and cluster for all celltypes 12/14/16
+
+```{r}
+stg12_aug16$dataset <- 'stg12'
+stg14_aug16$dataset <- 'stg14'
+stg16_aug16$dataset <- 'stg16'
+
+aug16_atlas_merged <- merge(x = stg12_aug16, y = c(stg14_aug16, stg16_aug16))
+
+```
+
+```{r}
+aug16_atlas_merged[["percent.mt"]] <- PercentageFeatureSet(object = aug16_atlas_merged, pattern = "mt:") 
+```
+
+```{r}
+
+VlnPlot(object = aug16_atlas_merged, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+aug16_atlas_merged_plot1 <- FeatureScatter(object = aug16_atlas_merged, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+aug16_atlas_merged_plot2 <- FeatureScatter(object = aug16_atlas_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(aug16_atlas_merged_plot1,aug16_atlas_merged_plot2))
+
+aug16_atlas_merged <- subset(x = aug16_atlas_merged, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 20)
+```
+
+```{r}
+
+aug16_atlas_merged <- NormalizeData(object = aug16_atlas_merged, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+```
+
+
+```{r}
+
+aug16_atlas_merged <- FindVariableFeatures(object = aug16_atlas_merged, selection.method = 'vst', nfeatures = 3000)
+
+top10 <- head(x = VariableFeatures(object = aug16_atlas_merged), 20)
+
+aug16_atlas_merged_plot3 <- VariableFeaturePlot(object = aug16_atlas_merged)
+aug16_atlas_merged_plot4 <- LabelPoints(plot = aug16_atlas_merged_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(aug16_atlas_merged_plot3, aug16_atlas_merged_plot4))
+
+```
+
+```{r}
+
+aug16_atlas_merged <- ScaleData(object = aug16_atlas_merged)
+```
+
+```{r}
+aug16_atlas_merged <- ScaleData(object = aug16_atlas_merged, vars.to.regress = 'percent.mt')
+```
+
+```{r}
+aug16_atlas_merged <- RunPCA(object = aug16_atlas_merged, features = VariableFeatures(object = aug16_atlas_merged))
+```
+
+```{r}
+
+aug16_atlas_merged_clus1 <- FindNeighbors(object = aug16_atlas_merged, dims = 1:50)
+aug16_atlas_merged_clus1 <- FindClusters(object = aug16_atlas_merged_clus1, resolution = 5.0)
+
+head(x = Idents(object = aug16_atlas_merged_clus1), 5)
+```
+
+```{r}
+
+aug16_atlas_merged_clus1 <- RunUMAP(object = aug16_atlas_merged_clus1, dims = 1:50)
+
+```
+
+```{r}
+
+DimPlot(object = aug16_atlas_merged_clus1, reduction = 'umap', label = TRUE)
+
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+
+DimPlot(object = aug16_atlas_merged_clus1, reduction = 'umap', label = TRUE, group.by = 'dataset')
+```
+
+```{r}
+FeaturePlot(object = aug16_atlas_merged_clus1, features = c("elav", "dpn", "Hey", "brp", "nSyb", "repo", "osi6", "ect", "TwdlF", "serp", "Root", "alphaTub85E", "CAP", "Osi20", "ect", "Twdlbeta", "bowl", "Hand", "prc", "Pxn", "mesh", "Mhc", "ppl", "glob1", "apolpp"), reduction = 'umap')
+
+```
+
+```{r}
+#find markers for full embryo merged atlas
+
+
+aug16_atlas_merged_clus1.markers <- FindAllMarkers(object = aug16_atlas_merged_clus1, min.pct = 0.25, logfc.threshold = 0.25)
+
+
+library(openxlsx)
+
+write.xlsx(aug16_atlas_merged_clus1.markers, file = "aug16_atlas_merged_clus1.xlsx", colNames = TRUE, rownames = TRUE)
+
+```
+
+
+#Subset neuron clusters directly from merged whole embryo atlas
+
+```{r}
+
+aug16_atlas_merged_clus1_neurons.list <- c('4', '13', '14', '22', '23', '25', '26', '27', '28', '37', '39', '45', '47', '53', '59', '61', '67', '71', '73', '75', '85')
+      aug16_atlas_merged_clus1_neurons <-subset(aug16_atlas_merged_clus1, idents = aug16_atlas_merged_clus1_neurons.list)
+```
+
+```{r}
+    
+    # Re-UMAP and cluster progenitors 
+    {
+     aug16_atlas_merged_clus1_neurons <- RunUMAP( aug16_atlas_merged_clus1_neurons, reduction = "pca", dims = 1:50)
+       aug16_atlas_merged_clus1_neurons <- FindNeighbors( aug16_atlas_merged_clus1_neurons, reduction = "pca", dims = 1:50)
+ 
+       aug16_atlas_merged_clus1_neurons <- FindClusters( aug16_atlas_merged_clus1_neurons, resolution = 2.0)  
+    
+      DimPlot( aug16_atlas_merged_clus1_neurons, reduction = "umap", label = TRUE)
+      
+    }
+```
+
+```{r}
+DimPlot( aug16_atlas_merged_clus1_neurons, reduction = "umap", label = TRUE, group.by = 'dataset' )
+```
+
+
+```{r}
+
+aug16_atlas_merged_clus1_neurons.markers <- FindAllMarkers(object = aug16_atlas_merged_clus1_neurons, min.pct = 0.25, logfc.threshold = 0.25)
+
+library(openxlsx)
+
+write.xlsx(aug16_atlas_merged_clus1_neurons.markers, file = "aug16_atlas_merged_clus1_neurons.xlsx", colNames = TRUE, rownames = TRUE)
+
+```
+
+```{r}
+
+FeaturePlot(object = aug16_atlas_merged_clus1_neurons, features = c("dpn", "brp", "nSyb", "Hey", "zfh1", "repo"), reduction = 'umap')
+
+```
+
+#SEPARATE OUT REDSTINGER FROM MERGED ATLAS
+
+```{r}
+
+aug16_atlas_merged_clus1_redstinger <-subset(aug16_atlas_merged_clus1_neurons, subset = elav > 0 & RedstingerNLS > 0)
+
+```
+
+```{r}
+    
+# Re-UMAP and cluster progenitors 
+
+aug16_atlas_merged_clus1_redstinger_clus1 <- RunUMAP( aug16_atlas_merged_clus1_redstinger, reduction = "pca", dims = 1:50)
+
+aug16_atlas_merged_clus1_redstinger_clus1 <- FindNeighbors( aug16_atlas_merged_clus1_redstinger_clus1, reduction = "pca", dims = 1:50)
+ 
+aug16_atlas_merged_clus1_redstinger_clus1 <- FindClusters( aug16_atlas_merged_clus1_redstinger_clus1, resolution = 2.0)  
+    
+DimPlot( aug16_atlas_merged_clus1_redstinger_clus1, reduction = "umap", label = TRUE)
+      
+```
+
+```{r}
+
+DimPlot( aug16_atlas_merged_clus1_redstinger_clus1, reduction = "umap", label = TRUE, group.by = 'dataset')
+
+```
+
+```{r}
+
+aug16_atlas_merged_clus1_redstinger_clus1.markers <- FindAllMarkers(object = aug16_atlas_merged_clus1_redstinger_clus1, min.pct = 0.25, logfc.threshold = 0.25)
+
+library(openxlsx)
+
+write.xlsx(aug16_atlas_merged_clus1_redstinger_clus1.markers, file = "aug16_atlas_merged_clus1_redstinger_clus1_jan24.xlsx", colNames = TRUE, rownames = TRUE)
+
+```
+
+
+```{r}
+#load common packages
+library(Seurat)
+library(tidyverse)
+library(pheatmap)
+load('~/Desktop/NB7-1_scRNAseq/NB71.RData')
+```
+
+```{r}
+#Figure 1B
+library(xlsx)
+amnio_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 1)[,2])
+cns_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 2)[,2])
+epi_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 3)[,2])
+fatbody_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 4)[,2])
+foregut_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 5)[,2])
+germ_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 6)[,2])
+glia_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 7)[,2])
+hemo_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 8)[,2])
+hindgut_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 9)[,2])
+midline_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 10)[,2])
+midgut_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 11)[,2])
+sensory_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 12)[,2])
+somaticmuscle_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 13)[,2])
+trachea_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 14)[,2])
+visceralmuscle_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 15)[,2])
+yolk_list=list(read.xlsx('~/Desktop/NB7-1_scRNAseq/Supp Table 2 (modules of ground truth genes, for fig 1B).xlsx', sheetIndex = 16)[,2])
+aug16_atlas_merged_clus1=AddModuleScore(aug16_atlas_merged_clus1, features=c(amnio_list,cns_list,epi_list,fatbody_list,foregut_list,germ_list,glia_list,hemo_list,hindgut_list,midline_list,midgut_list,sensory_list,somaticmuscle_list,trachea_list,visceralmuscle_list,yolk_list),name=c('amnio','cns','epi','fatbody','foregut','germ','glia','hemocytes','hindgut','midline','midgut','sensory','sm','trachea','vm','yolk'))
+FeaturePlot(aug16_atlas_merged_clus1,features='amnio1', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Amnioserosa')
+FeaturePlot(aug16_atlas_merged_clus1,features='cns2', col=c('gray95','navy'), min.cutoff='q50')+labs(title='CNS')
+FeaturePlot(aug16_atlas_merged_clus1,features='epi3', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Epithelia')
+FeaturePlot(aug16_atlas_merged_clus1,features='fatbody4', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Fatbody')
+FeaturePlot(aug16_atlas_merged_clus1,features='foregut5', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Foregut')
+FeaturePlot(aug16_atlas_merged_clus1,features='germ6', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Germline')
+FeaturePlot(aug16_atlas_merged_clus1,features='glia7', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Glia')
+FeaturePlot(aug16_atlas_merged_clus1,features='hemocytes8', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Hemocytes')
+FeaturePlot(aug16_atlas_merged_clus1,features='hindgut9', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Hindgut')
+FeaturePlot(aug16_atlas_merged_clus1,features='midline10', col=c('gray95','navy'), min.cutoff='q50')+labs(title='MidlineCNS')
+FeaturePlot(aug16_atlas_merged_clus1,features='midgut11', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Midgut')
+FeaturePlot(aug16_atlas_merged_clus1,features='sensory12', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Sensory N')
+FeaturePlot(aug16_atlas_merged_clus1,features='sm13', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Somatic Muscle')
+FeaturePlot(aug16_atlas_merged_clus1,features='trachea14', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Trachea')
+FeaturePlot(aug16_atlas_merged_clus1,features='vm15', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Visceral muscle')
+FeaturePlot(aug16_atlas_merged_clus1,features='yolk16', col=c('gray95','navy'), min.cutoff='q50')+labs(title='Yolk')
+```
+
+```{r}
+#Figure 3
+DimPlot(aug16_atlas_merged_clus1, group.by = 'dataset')
+```
+
+```{r}
+#Figure 5
+CNS=subset(aug16_atlas_merged_clus1_neurons,idents=c('0','1','2','3','5','6','8','9','11','14','15','17','19','20','22','30'))
+FeaturePlot(CNS, features='mira', split.by = 'dataset')+labs(title='mira(NB)')
+FeaturePlot(CNS, features='tap', split.by = 'dataset')+labs(title='tap(GMC)')
+FeaturePlot(CNS, features='Hey', split.by = 'dataset')+labs(title='Hey(newborn N)')
+FeaturePlot(CNS, features='nSyb', split.by = 'dataset')+labs(title='nSyb(young N + old N)')
+FeaturePlot(CNS, features='brp', split.by = 'dataset')+labs(title='brp(old N)')
+```
+
+
+```{r}
+#Figure 6A, NB TFs
+TF=read.csv('~/Desktop/NB7-1_scRNAseq/TF.csv', header=T)
+NB=subset(aug16_atlas_merged_clus1_neurons, idents=c('14','20','22'))
+NB.s12.markers=FindMarkers(NB, ident.1 = WhichCells(subset(NB, dataset=='stg12')))
+NB.s12.markers.TF=NB.s12.markers[rownames(NB.s12.markers)%in%TF$SYMBOL,]
+NB.s14.markers=FindMarkers(NB, ident.1 = WhichCells(subset(NB, dataset=='stg14')))
+NB.s14.markers.TF=NB.s14.markers[rownames(NB.s14.markers)%in%TF$SYMBOL,]
+NB.s16.markers=FindMarkers(NB, ident.1 = WhichCells(subset(NB, dataset=='stg16')))
+NB.s16.markers.TF=NB.s16.markers[rownames(NB.s16.markers)%in%TF$SYMBOL,]
+NB.s12.s14.s16.markers.TF=rbind(NB.s12.markers.TF, NB.s14.markers.TF, NB.s16.markers.TF)
+NB.s12.s14.s16.markers.TF.exp=as.data.frame(head(AverageExpression(NB, features=rownames(NB.s12.s14.s16.markers.TF), group.by='dataset')))
+NB.s12.s14.s16.markers.TF.exp=NB.s12.s14.s16.markers.TF.exp[rowMeans(NB.s12.s14.s16.markers.TF.exp)!=0,]
+pheatmap(NB.s12.s14.s16.markers.TF.exp, scale='row',clustering_method='average', cluster_cols=F, fontsize_row = 4, cellwidth = 4, cellheight = 4)
+```
+
+```{r}
+#Figure 6B Undifferentiated neurons/mature neurons
+library(pheatmap)
+TF=read.csv('~/Desktop/NB7-1_scRNAseq/TF.csv', header=T)
+CSM=read.csv('~/Desktop/NB7-1_scRNAseq/CSM.csv', header=T)
+neurons=subset(aug16_atlas_merged_clus1_neurons,idents=c('0','1','2','3','5','6','8','9','11','17','19','30'))
+neurons.immat.markers=FindMarkers(neurons, ident.1 = WhichCells(neurons, expression=hdc>0), ident.2 = WhichCells(neurons, expression=brp>0))
+neurons.immat.markers.TF=neurons.immat.markers[rownames(neurons.immat.markers) %in% TF$SYMBOL,] %>% filter(p_val_adj<0.05) %>% arrange(desc(avg_log2FC))
+neurons.immat.markers.CSM=neurons.immat.markers[rownames(neurons.immat.markers) %in% CSM$SYMBOL,] %>% filter(p_val_adj<0.05) %>% arrange(desc(avg_log2FC))
+pheatmap (neurons.immat.markers.TF[1:23,2], cluster_rows = F, cluster_cols = F, labels_row=row.names(neurons.immat.markers.TF[1:23,]), cellwidth = 6, fontsize_row = 6, cellheight = 6)
+pheatmap (neurons.immat.markers.TF[60:24,2], cluster_rows = F, cluster_cols = F, labels_row = row.names(neurons.immat.markers.TF[60:24,]), legend=F, cellwidth = 6, cellheight = 6, fontsize_row = 6)
+pheatmap (neurons.immat.markers.CSM[1:15,2], cluster_rows = F, cluster_cols = F, labels_row = row.names(neurons.immat.markers.CSM[1:15,]),legend=F, cellwidth = 6, cellheight = 6, fontsize_row = 6)
+pheatmap (neurons.immat.markers.CSM[175:16,2], cluster_rows = F,cluster_cols = F, labels_row = row.names(neurons.immat.markers.CSM[175:16,]), legend=F, cellwidth = 6, cellheight = 6, fontsize_col = 5)
+```
+
+```{r}
+#Figure 6C HDTF in neurons
+HDTF=read.csv('~/Desktop/NB7-1_scRNAseq/HDTF.csv', header = T)
+neurons=subset(aug16_atlas_merged_clus1_neurons,idents=c('0','1','2','3','5','6','8','9','11','17','19','30'))
+Idents(neurons, cells=WhichCells(neurons, expression= ((zfh1>0&twit>0)|VGlut>0))) <-'MNs'
+Idents(neurons, cells=WhichCells(neurons, expression= ((zfh1>0&twit>0)|VGlut>0), invert=T))<-'INs'
+ap_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, ap>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(ap_HDTF_exp)=c('ap.INs','ap.MNs')
+BH1_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, `B-H1`>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(BH1_HDTF_exp)=c('BH1.INs','BH1.MNs')
+Dbx_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, Dbx>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(Dbx_HDTF_exp)=c('Dbx.INs','Dbx.MNs')
+eve_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, eve>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(eve_HDTF_exp)=c('eve.INs','eve.MNs')
+hb9_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, exex>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(hb9_HDTF_exp)=c('hb9.INs','hb9.MNs')
+islet_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, tup>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(islet_HDTF_exp)=c('islet.INs','islet.MNs')
+Lim3_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, Lim3>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(Lim3_HDTF_exp)=c('Lim3.INs','Lim3.MNs')
+nkx6_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, HGTX>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(nkx6_HDTF_exp)=c('nkx6.INs','nkx6.MNs')
+unc4_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, `unc-4`>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(unc4_HDTF_exp)=c('unc4.INs','unc4.MNs')
+vvl_HDTF_exp=as.data.frame(head(AverageExpression(subset(neurons, vvl>0), features=HDTF$HDTF), group.by='active.ident'))
+colnames(vvl_HDTF_exp)=c('vvl.INs','vvl.MNs')
+neurons_HDTF_exp=cbind(ap_HDTF_exp, BH1_HDTF_exp, Dbx_HDTF_exp, eve_HDTF_exp, hb9_HDTF_exp, islet_HDTF_exp, Lim3_HDTF_exp, nkx6_HDTF_exp, unc4_HDTF_exp, vvl_HDTF_exp)
+library(ComplexHeatmap)
+library(circlize)
+Heatmap(as.matrix(neurons_HDTF_exp), colorRamp2(c(0,0.25,0.5, 0.75, 1,2,5,10,15,20), c('gray90','gray75','yellow','orange','brown','magenta','darkred','darkgreen','darkcyan','darkblue')), color_space = 'LAB',clustering_distance_rows = 'manhattan', clustering_method_rows = 'complete', clustering_distance_columns = 'manhattan', clustering_method_columns = 'complete',  column_names_side = 'top', row_names_side = 'right',  column_names_gp = gpar(fontsize=4), heatmap_legend_param = list(at=c(0,1,2,5,10,15,20),title=' '), width=ncol(neurons_HDTF_exp)*unit(6,'point'), height=nrow(neurons_HDTF_exp)*unit(6,'point'))
+```
+
+```{r}
+#Figure 6C CSM in neurons
+CSM_selected=read.csv('~/Desktop/NB7-1_scRNAseq/CSM-selected.csv', header=T)
+ap_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, ap>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(ap_CSM_exp)=c('ap.INs','ap.MNs')
+BH1_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, `B-H1`>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(BH1_CSM_exp)=c('BH1.INs','BH1.MNs')
+Dbx_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, Dbx>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(Dbx_CSM_exp)=c('Dbx.INs','Dbx.MNs')
+eve_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, eve>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(eve_CSM_exp)=c('eve.INs','eve.MNs')
+hb9_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, exex>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(hb9_CSM_exp)=c('hb9.INs','hb9.MNs')
+islet_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, tup>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(islet_CSM_exp)=c('islet.INs','islet.MNs')
+Lim3_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, Lim3>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(Lim3_CSM_exp)=c('Lim3.INs','Lim3.MNs')
+nkx6_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, HGTX>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(nkx6_CSM_exp)=c('nkx6.INs','nkx6.MNs')
+unc4_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, `unc-4`>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(unc4_CSM_exp)=c('unc4.INs','unc4.MNs')
+vvl_CSM_exp=as.data.frame(head(AverageExpression(subset(neurons, vvl>0), features=CSM_selected$CSM), group.by='active.ident'))
+colnames(vvl_CSM_exp)=c('vvl.INs','vvl.MNs')
+neurons_CSM_exp=cbind(ap_CSM_exp, BH1_CSM_exp, Dbx_CSM_exp, eve_CSM_exp, hb9_CSM_exp, islet_CSM_exp, Lim3_CSM_exp, nkx6_CSM_exp, unc4_CSM_exp, vvl_CSM_exp)
+Heatmap(as.matrix(neurons_CSM_exp), colorRamp2(c(0,0.25,0.5, 0.75, 1,2,5,10,15,20), c('gray90','gray75','yellow','orange','brown','magenta','darkred','darkgreen','darkcyan','darkblue')), color_space = 'LAB',clustering_distance_rows = 'manhattan', clustering_method_rows = 'complete', clustering_method_columns='complete', clustering_distance_columns='manhattan',column_names_side = 'top', row_names_side = 'right',  column_names_gp = gpar(fontsize=4), heatmap_legend_param = list(at=c(0,1,2,5,10,15,20),title=' '), width=ncol(neurons_CSM_exp)*unit(6,'point'), height=nrow(neurons_CSM_exp)*unit(6,'point'))
+
+```
+
+```{r}
+#Figure 7B
+FeaturePlot(aug16_atlas_merged_clus1_neurons, features='RedstingerNLS')
+```
+
+```{r}
+#Figure 7C
+cns=subset(aug16_atlas_merged_clus1_neurons, idents=c(0,1,2,3,5,6,9,11,14,15,17,19,20,22,30))
+NB71_markers=FindMarkers(cns, ident.1 = WhichCells(cns, expression=RedstingerNLS>0))
+NB71_markers_TF=NB71_markers[rownames(NB71_markers)%in%TF$SYMBOL,] %>% arrange(desc(avg_log2FC))
+pheatmap(NB71_markers_TF[,2], cluster_rows = F, cluster_cols = F, labels_row = row.names(NB71_markers_TF))
+```
+
+```{r}
+#Figure 7F
+DimPlot(aug16_atlas_merged_clus1_redstinger_clus1)
+```
+
+```{r}
+#Figure 7H
+library(scrime)
+NB_TTF_exp=as.data.frame(head(AverageExpression(subset(aug16_atlas_merged_clus1_redstinger_clus1, idents='3'), features=TF$SYMBOL, group.by = 'dataset')))
+colnames(NB_TTF_exp)<-c('NB.stg12','NB.stg14','NB.stg16')
+NB_TTF_exp_scaled=rowScales(NB_TTF_exp)
+new.young.N_TTF_exp=as.data.frame(head(AverageExpression(subset(aug16_atlas_merged_clus1_redstinger_clus1, idents=c('7','0','5','8')), features=TF$SYMBOL, group.by = 'dataset')))
+colnames(new.young.N_TTF_exp)<-c('n.y.N.stg12','n.y.N.stg14','n.y.N.stg16')
+new.young.N_TTF_exp_scaled=rowScales(new.young.N_TTF_exp)
+old.N_TTF_exp=as.data.frame(head(AverageExpression(subset(aug16_atlas_merged_clus1_redstinger_clus1, idents=c('1','9')), features=TF$SYMBOL, group.by = 'dataset')))
+colnames(old.N_TTF_exp)<-c('old.N.stg12','old.stg14','old.stg16')
+old.N_TTF_exp_scaled=rowScales(old.N_TTF_exp)
+NB7_1_TTF_exp=cbind(NB_TTF_exp_scaled, new.young.N_TTF_exp_scaled, old.N_TTF_exp_scaled)
+NB7_1_TTF_exp[is.na(NB7_1_TTF_exp)]<-NA
+NB7_1_TTF_exp=NB7_1_TTF_exp %>% drop_na()
+pheatmap(NB7_1_TTF_exp, cluster_cols = F, cellwidth = 3, cellheight = 3, fontsize_row = 3)
+```
+
+```{r}
+#Figure 7I
+NB7_1=subset(aug16_atlas_merged_clus1_redstinger_clus1,idents=c('0','1','3','5','7','8','9','11'))
+Idents(NB7_1,  WhichCells(NB7_1, idents='3'))<-'NB'
+Idents(NB7_1,  WhichCells(NB7_1, idents='11'))<-'GMC'
+Idents(NB7_1,  WhichCells(NB7_1, idents='7'))<-'newborn.N'
+Idents(NB7_1,  WhichCells(NB7_1, idents=c('0','5','8')))<-'young.N'
+Idents(NB7_1,  WhichCells(NB7_1, idents=c('1','9')))<-'old.N'
+NB7_1_HDTF_exp=as.data.frame(head(AverageExpression(NB7_1, features=HDTF$HDTF, group.by = 'ident')))
+Heatmap(as.matrix(NB7_1_HDTF_exp), colorRamp2(c(0,0.25,0.5, 0.75, 1,2,5,10,15,20), c('gray90','gray75','yellow','orange','brown','magenta','darkred','darkgreen','darkcyan','darkblue')), color_space = 'LAB',clustering_distance_rows = 'manhattan',clustering_method_rows = 'complete', cluster_columns = F , column_names_side = 'top', row_names_side = 'right',  column_names_gp = gpar(fontsize=6),row_names_gp=gpar(fontsize=4),heatmap_legend_param = list(at=c(0,1,2,5,10,15,20),title=' '),width=ncol(NB7_1_HDTF_exp)*unit(6,'point'),height=nrow(NB7_1_HDTF_exp)*unit(6,'point'))
+NB7_1_CSM_exp=as.data.frame(head(AverageExpression(NB7_1, features=CSM_selected$CSM, group.by = 'ident')))
+Heatmap(as.matrix(NB7_1_CSM_exp), colorRamp2(c(0,0.25,0.5, 0.75, 1,2,5,10,15,20), c('gray90','gray75','yellow','orange','brown','magenta','darkred','darkgreen','darkcyan','darkblue')), color_space = 'LAB',clustering_distance_rows = 'manhattan',clustering_method_rows = 'complete', cluster_columns = F , column_names_side = 'top', row_names_side = 'right',  column_names_gp = gpar(fontsize=6), row_names_gp=gpar(fontsize=4), heatmap_legend_param = list(at=c(0,1,2,5,10,15,20),title=' '),width=ncol(NB7_1_CSM_exp)*unit(6,'point'),height=nrow(NB7_1_CSM_exp)*unit(6,'point'))
+
+```
+
+
+

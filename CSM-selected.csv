@@ -1,0 +1,152 @@
+﻿CSM,Type_of_CSM
+cDIP,Dpr-DIP
+CG1504,Dpr-DIP
+CG5819,Dpr-DIP
+DIP-alpha,Dpr-DIP
+DIP-beta,Dpr-DIP
+DIP-delta,Dpr-DIP
+DIP-epsilon,Dpr-DIP
+DIP-eta,Dpr-DIP
+DIP-gamma,Dpr-DIP
+DIP-iota,Dpr-DIP
+DIP-theta,Dpr-DIP
+DIP-zeta,Dpr-DIP
+dpr1,Dpr-DIP
+dpr10,Dpr-DIP
+dpr11,Dpr-DIP
+dpr12,Dpr-DIP
+dpr13,Dpr-DIP
+dpr14,Dpr-DIP
+dpr15,Dpr-DIP
+dpr16,Dpr-DIP
+dpr17,Dpr-DIP
+dpr18,Dpr-DIP
+dpr19,Dpr-DIP
+dpr2,Dpr-DIP
+dpr20,Dpr-DIP
+dpr21,Dpr-DIP
+dpr3,Dpr-DIP
+dpr4,Dpr-DIP
+dpr5,Dpr-DIP
+dpr6,Dpr-DIP
+dpr7,Dpr-DIP
+dpr8,Dpr-DIP
+dpr9,Dpr-DIP
+klg,Dpr-DIP
+18w,Side-Beat
+beat-Ia,Side-Beat
+beat-Ib,Side-Beat
+beat-Ic,Side-Beat
+beat-IIa,Side-Beat
+beat-IIb,Side-Beat
+beat-IIIb,Side-Beat
+beat-IIIc,Side-Beat
+beat-IV,Side-Beat
+beat-Va,Side-Beat
+beat-Vb,Side-Beat
+beat-Vc,Side-Beat
+beat-VI,Side-Beat
+beat-VII,Side-Beat
+CG17839,Side-Beat
+hig,Side-Beat
+side,Side-Beat
+side-II,Side-Beat
+side-III,Side-Beat
+side-IV,Side-Beat
+side-V,Side-Beat
+side-VI,Side-Beat
+side-VII,Side-Beat
+side-VIII,Side-Beat
+fra,SYG/Netrin
+hbs,SYG/Netrin
+kirre,SYG/Netrin
+NetA,SYG/Netrin
+NetB,SYG/Netrin
+rst,SYG/Netrin
+sns,SYG/Netrin
+unc-5,SYG/Netrin
+boi,EGFR/HH
+Egfr,EGFR/HH
+ihog,EGFR/HH
+kek1,EGFR/HH
+vn,EGFR/HH
+Ama,Homophilic-IgCSM
+CG33143,Homophilic-IgCSM
+CG33543,Homophilic-IgCSM
+CG43462,Homophilic-IgCSM
+CG5597,Homophilic-IgCSM
+Dscam1,Homophilic-IgCSM
+Dscam2,Homophilic-IgCSM
+Dscam3,Homophilic-IgCSM
+Dscam4,Homophilic-IgCSM
+ed,Homophilic-IgCSM
+Fas2,Homophilic-IgCSM
+Fas3,Homophilic-IgCSM
+fred,Homophilic-IgCSM
+ImpL2,Homophilic-IgCSM
+nrm,Homophilic-IgCSM
+Ptp99A,Homophilic-IgCSM
+tutl,Homophilic-IgCSM
+caps,IgCSM-LRR
+CG13506,IgCSM-LRR
+CG4781,IgCSM-LRR
+CG5541,IgCSM-LRR
+CG6959,IgCSM-LRR
+CG7702,IgCSM-LRR
+Lac,IgCSM-LRR
+N,IgCSM-LRR
+robo1,IgCSM-LRR
+robo2,IgCSM-LRR
+robo3,IgCSM-LRR
+sli,IgCSM-LRR
+Tl,IgCSM-LRR
+PlexA,Other CSMs
+PlexB,Other CSMs
+Sema1a,Other CSMs
+Sema1b,Other CSMs
+Sema2a,Other CSMs
+Sema2b,Other CSMs
+Sema5c,Other CSMs
+Ephrin,Other CSMs
+Fas1,Other CSMs
+plum,Other CSMs
+Ten-a,Other CSMs
+Ten-m,Other CSMs
+Cad74A,Other CSMs
+Cad86C,Other CSMs
+Cad87A,Other CSMs
+Cad88C,Other CSMs
+Cad89D,Other CSMs
+Cad96Ca,Other CSMs
+Cad96Cb,Other CSMs
+Cad99C,Other CSMs
+CadN,Other CSMs
+CadN2,Other CSMs
+CG10339,Other CSMs
+Nlg1,Other CSMs
+Nlg2,Other CSMs
+Nlg3,Other CSMs
+Nlg4,Other CSMs
+Nrx-1,Other CSMs
+Nrx-IV,Other CSMs
+Lar,Phosphotyrosin kinase/phophastase
+Ptp10D,Phosphotyrosin kinase/phophastase
+Ptp4E,Phosphotyrosin kinase/phophastase
+Ptp69D,Phosphotyrosin kinase/phophastase
+Alk,Phosphotyrosin kinase/phophastase
+CG3277,Phosphotyrosin kinase/phophastase
+Ddr,Phosphotyrosin kinase/phophastase
+dnt,Phosphotyrosin kinase/phophastase
+drl,Phosphotyrosin kinase/phophastase
+Drl-2,Phosphotyrosin kinase/phophastase
+Eph,Phosphotyrosin kinase/phophastase
+htl,Phosphotyrosin kinase/phophastase
+InR,Phosphotyrosin kinase/phophastase
+Nrk,Phosphotyrosin kinase/phophastase
+otk,Phosphotyrosin kinase/phophastase
+Pvr,Phosphotyrosin kinase/phophastase
+Ret,Phosphotyrosin kinase/phophastase
+Ror,Phosphotyrosin kinase/phophastase
+sev,Phosphotyrosin kinase/phophastase
+Tie,Phosphotyrosin kinase/phophastase
+tor,Phosphotyrosin kinase/phophastase
